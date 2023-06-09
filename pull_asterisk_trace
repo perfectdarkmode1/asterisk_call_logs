@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Prompt user for input
+read -p "Enter the DID: " did
+read -p "Enter the date (YYYY-MM-DD): " date
+read -p "Is the call inbound or outbound?" direction
+
+if [ "$direction" == "inbound" ]; then
+    direction="DIRECTION=INBOUND"
+elif [ "$direction"  == "outbound" ]; then
+    direction="DIRECTION=OUTBOUND"
+else echo "Invalid Input"
+fi
+
+date2=$(date -d "$date + 1 day" +"%Y%m%d")
+
+# Testing date2 variable
+#echo "$date2"
+#
+#Testing direction variable
+#echo "$direction"
+
+# grab a list of calls based on DID, direction, and date
+options=$(grep "$did" ~/Documents/full-$date2 | grep "$direction") 
+
+echo "$options"
+
+# Check if any lines were found
+if [ -z "$options" ]; then
+  zenity --error --text "No lines found matching the pattern."
+  exit 1
+fi
+
+# Read the lines of the options variable into an array
+lines=()
+while IFS=' ' read -ra line; do
+  lines+=("${line[*]}")
+done <<< "$options"
+
+# Create a list string for Zenity
+list_string=""
+for i in "${!lines[@]}"; do
+  list_string+="\"$((i+1))\" \"${lines[$i]}\" "
+done
+
+# Display the Zenity menu and get the user's choice
+choice=$(zenity --list --title "Menu" --text "Choose an option:" --column "Option" --column "Line" $list_string)
+
+# Validate the user input
+if [[ -n "$choice" ]]; then
+  selected_line="${lines[$((choice-1))]}"
+  trace_id=$(echo "$selected_line" | awk -F, '{gsub(/"/, "", $3); print substr($3, length($3) - 7)}')
+
+  zenity --info --text "You selected: $selected_line"
+else
+  zenity --error --text "Invalid input. Please select a valid option."
+fi
+
+
+# Search for call log trace ID
+#trace_id=$(grep -A 1 "$did" ~/Documents/full-{$date2} | grep "$date" | awk -F, '{gsub(/"/, "", $6); print substr($6, length($6) - 7)}')
+
+# This was used for testing to make sure the variable was correct
+ echo $trace_id
+
+# Check if trace ID was found
+#if [[ -z $trace_id ]]; then
+ # echo "No call logs found for the specified criteria."
+#else
+  # Print call logs for the trace ID
+ # grep -F "$trace_id" ~/Documents/full-20230524
+#fi
