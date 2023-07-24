@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Prompt user for input
+read -p "Enter the DID: " did
+read -p "Enter the date (YYYY-MM-DD): " date
+read -p "Is the call inbound or outbound?" direction
+
+if [ "$direction" == "inbound" ]; then
+    direction="DIRECTION=INBOUND"
+elif [ "$direction"  == "outbound" ]; then
+    direction="DIRECTION=OUTBOUND"
+else echo "Invalid Input"
+fi
+
+# Make the date match the log file, which is created the next day. 
+date2=$(date -d "$date + 1 day" +"%Y%m%d")
+
+# grab a list of calls based on DID, direction, and date
+options=$(grep "$did" ~/Documents/full-$date2 | grep "$direction") 
+
+IFS=$'\n' read -rd '' -a LOG_ENTRIES <<<"$options"
+
+# Generate menu options
+OPTIONS_STRING=""
+for entry in "${LOG_ENTRIES[@]}"; do
+  OPTIONS_STRING+=" \"$entry\""
+done
+
+choice=$(eval "whiptail --title \"Menu Example\" --menu \"Choose an option:\" 15 80 10 ${OPTIONS_STRING} 3>&1 1>&2 2>&3")
+
+if [[ -n "$choice" ]]; then   
+#selected_line="${LOG_ENTRIES[$((choice-1))]}"   
+trace_id=$(echo "$choice" | awk -F'[][]' '{gsub(/"/, "", $4); print substr($4, length($4) - 7)}')   
+
+fi
+
+# Check if trace ID was found
+if [[ -z $trace_id ]]; then
+echo "No call logs found."
+else
+
+#Print call logs for the trace ID
+grep -F "$trace_id" ~/Documents/full-$date2 | grep -B5 -A5 Answer
+
+fi
